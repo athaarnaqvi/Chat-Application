@@ -18,9 +18,12 @@ clients = []
 nicknames = []
 
 def broadcast(message):
-    print("Here 3")
     for client in clients:
-        client.send(message)
+        try:
+            client.send(message)
+        except:
+            pass  # Handle case where client is disconnected
+
 
 def handle(client):
     print("Here 2")

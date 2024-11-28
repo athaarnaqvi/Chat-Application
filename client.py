@@ -13,7 +13,7 @@ ADDR = (HOST,PORT)
 
 class Client:
     
-    def __init__(self, host, port):
+    def _init_(self, host, port):
         print("Here 4")
         self.sock= socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         self.sock.connect((host,port))
@@ -35,33 +35,47 @@ class Client:
     def gui_loop(self):
         print("Here 5")
         self.win = tkinter.Tk()
+        self.win.title(self.nickname)  # Set the window title to the client's nickname
         self.win.configure(bg="lightgray")
-        
+    
         self.chat_label = tkinter.Label(self.win, text="CHAT: ", bg="lightgray")
-        self.chat_label.config(font=("Arial",14))
-        self.chat_label.pack(padx = 20, pady=5)
-        
-        self.text_area= tkinter.scrolledtext.ScrolledText(self.win)
+        self.chat_label.config(font=("Arial", 14))
+        self.chat_label.pack(padx=20, pady=5)
+    
+        self.text_area = tkinter.scrolledtext.ScrolledText(self.win)
         self.text_area.pack(padx=20, pady=5)
-        self.text_area.config(state = 'disabled') #so that the user cannot change chat history
-        
+        self.text_area.config(state='disabled')  # so that the user cannot change chat history
+    
         self.msg_label = tkinter.Label(self.win, text="CHAT: ", bg="lightgray")
-        self.msg_label.config(font=("Arial",14))
-        self.msg_label.pack(padx = 20, pady=5)
-        
-        self.input_area= tkinter.Text(self.win, height=3)
+        self.msg_label.config(font=("Arial", 14))
+        self.msg_label.pack(padx=20, pady=5)
+    
+        self.input_area = tkinter.Text(self.win, height=3)
         self.input_area.pack(padx=20, pady=5)
-        
-        self.send_button=tkinter.Button(self.win, text = "SEND", command=self.write)
-        self.send_button.config(font=("Arial",14))
-        self.send_button.pack(padx = 20, pady=5)
-        
+    
+        self.send_button = tkinter.Button(self.win, text="SEND", command=self.write)
+        self.send_button.config(font=("Arial", 14))
+        self.send_button.pack(padx=20, pady=5)
+
+        # Add Leave button
+        self.leave_button = tkinter.Button(self.win, text="LEAVE", command=self.leave_group)
+        self.leave_button.config(font=("Arial", 14), bg="red", fg="white")
+        self.leave_button.pack(padx=20, pady=5)
+    
         self.gui_done = True
-        
-        self.win.protocol("WM_DELETE_WINDON",self.stop)
+    
+        self.win.protocol("WM_DELETE_WINDOW", self.leave_group)  # Handle window close as leave
         self.win.mainloop()
-        
-        
+
+    def leave_group(self):
+        print("Here 11")
+        leave_message = f"{self.nickname} has left the chat."
+        self.sock.send(leave_message.encode(FORMAT))  # Notify others
+        self.running = False
+        self.win.destroy()  # Close the window
+        self.sock.close()  # Close the socket
+        exit(0)  # Terminate the program
+      
     def write(self):
         print("Here 6")
         message = f"{self.nickname}: {self.input_area.get('1.0','end')}" #getting the whole text
