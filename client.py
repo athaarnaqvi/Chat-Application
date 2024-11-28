@@ -13,7 +13,7 @@ ADDR = (HOST,PORT)
 
 class Client:
     
-    def _init_(self, host, port):
+    def __init__(self, host, port):
         print("Here 4")
         self.sock= socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         self.sock.connect((host,port))
@@ -23,6 +23,8 @@ class Client:
         msg.withdraw()
         
         self.nickname = simpledialog.askstring("Nickname","Please choose a nickname",parent = msg)
+        
+        
         self.gui_done = False
         self.running = True
         
