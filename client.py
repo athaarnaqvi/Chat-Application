@@ -23,8 +23,6 @@ class Client:
         msg.withdraw()
         
         self.nickname = simpledialog.askstring("Nickname","Please choose a nickname",parent = msg)
-        
-        
         self.gui_done = False
         self.running = True
         
@@ -69,14 +67,15 @@ class Client:
         self.win.protocol("WM_DELETE_WINDOW", self.leave_group)  # Handle window close as leave
         self.win.mainloop()
 
+
     def leave_group(self):
         print("Here 11")
         leave_message = f"{self.nickname} has left the chat."
-        self.sock.send(leave_message.encode(FORMAT))  # Notify others
-        self.running = False
-        self.win.destroy()  # Close the window
-        self.sock.close()  # Close the socket
-        exit(0)  # Terminate the program
+        try:
+            self.sock.send(leave_message.encode(FORMAT))
+        except:
+            pass
+        self.stop()
       
     def write(self):
         print("Here 6")
@@ -86,42 +85,38 @@ class Client:
         
     def stop(self):
         print("Here 7")
-        self.running =False
-        self.win.destroy()
-        self.sock.close()
+        self.running = False
+        try:
+            self.sock.close()
+        except:
+            pass
+        if self.gui_done:
+            self.win.quit()  # Use `quit` instead of `destroy` to avoid `tkinter` errors
         exit(0)
         
     def receive(self):
         print("Here 8")
-        
         while self.running:
             try:
                 message = self.sock.recv(1024).decode(FORMAT)
-                
                 if message == 'NICK':
                     print("Here 9")
                     self.sock.send(self.nickname.encode(FORMAT))
-                    
-                   
                 else:
-                    
                     if self.gui_done:
                         print("Here 10")
-                        self.text_area.config(state = 'normal')
-                        
-                        self.text_area.insert('end',message)
-                        
-                        self.text_area.yview('end')
-                        
-                        self.text_area.config(state = 'disabled')
-                        
-                        
-            except ConnectionAbortedError:
-                break
+                        # Use `after` to safely update GUI from a different thread
+                        self.win.after(0, self.update_chat, message)
             except:
-                print("Error")
-                self.sock.close()
+                print("Closing connection.")
+                self.running = False
                 break
 
+    def update_chat(self, message):
+        """Safely update the chat area from the main thread."""
+        self.text_area.config(state='normal')
+        self.text_area.insert('end', message + "\n")
+        self.text_area.yview('end')
+        self.text_area.config(state='disabled')
 
 client = Client(HOST,PORT)
