@@ -1,5 +1,7 @@
 import socket
 import threading
+import tkinter as tk
+from tkinter import messagebox
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 1210
@@ -12,8 +14,8 @@ server.bind(ADDR)
 
 clients = []
 nicknames = []
-client_counter = 0  # Initialize the counter with 0
-lock = threading.Lock()  # To ensure thread-safe operations on the counter
+client_counter = 0
+lock = threading.Lock()
 
 print("[SERVER IS LISTENING]...")
 server.listen()
@@ -23,38 +25,47 @@ def broadcast(message):
         try:
             client.send(message)
         except:
-            pass  # Handle case where a client is disconnected
+            pass
 
 def handle(client):
     global client_counter
     while True:
         try:
             message = client.recv(1024)
-            if not message:  # Empty message indicates disconnection
+            if not message:
                 raise ConnectionResetError
             print(f"{nicknames[clients.index(client)]} says {message.decode(FORMAT)}")
             broadcast(message)
         except:
-            # Remove the client and its nickname
             with lock:
-                index = clients.index(client)
-                clients.pop(index)
-                nickname = nicknames.pop(index)
-                client_counter -= 1
-                print(f"{nickname} disconnected. Active clients: {client_counter}")
-                
-                # Broadcast that the user left the chat
-                #broadcast(f"{nickname} has left the chat.".encode(FORMAT))
-            
+                if client in clients:
+                    index = clients.index(client)
+                    nickname = nicknames.pop(index)
+                    clients.pop(index)
+                    client_counter -= 1
+                    print(f"{nickname} disconnected. Active clients: {client_counter}")
             client.close()
-            
-            # Check if the counter is 0 to shut down the server
             if client_counter == 0:
                 print("[SERVER SHUTTING DOWN] No clients connected.")
                 server.close()
                 break
-            
             break
+
+def remove_client(nickname):
+    global client_counter  # Make sure we modify the global counter
+    with lock:
+        try:
+            index = nicknames.index(nickname)
+            client = clients.pop(index)
+            nicknames.pop(index)
+            client_counter -= 1
+            broadcast(f"{nickname} has been removed by the admin\n".encode(FORMAT))
+            client.send("You have been removed by the admin.".encode(FORMAT))
+            print(f"Removed {nickname} from the chat.")
+            client.close()  # Close the client socket here
+        except ValueError:
+            print(f"Client {nickname} not found.")
+
 
 def receive():
     global client_counter
@@ -63,27 +74,57 @@ def receive():
         try:
             client, address = server.accept()
             print(f"Connected with {str(address)}!")
-            
-            # Ask for the client's nickname
             client.send("NICK".encode(FORMAT))
             nickname = client.recv(1024).decode(FORMAT)
-            
-            # Add the client and its nickname
+
             with lock:
                 nicknames.append(nickname)
                 clients.append(client)
                 client_counter += 1
                 print(f"Nickname of the client: {nickname}. Active clients: {client_counter}")
-            
-            # Notify other clients and the new client
+
             broadcast(f"{nickname} connected to the server!\n".encode(FORMAT))
             client.send("Connected to the server.".encode(FORMAT))
-            
-            # Start a thread to handle the client
+
             thread = threading.Thread(target=handle, args=(client,))
             thread.start()
+
         except OSError:
-            # Server socket might be closed if client_counter reaches 0
             break
 
-receive()
+def server_gui():
+    window = tk.Tk()
+    window.title("Server Admin Panel")
+
+    client_listbox = tk.Listbox(window, width=40, height=10)
+    client_listbox.pack(padx=20, pady=20)
+
+    def update_client_list():
+        client_listbox.delete(0, tk.END)
+        for client in nicknames:
+            client_listbox.insert(tk.END, client)
+
+    def remove_selected_client():
+        selected = client_listbox.curselection()
+        if selected:
+            nickname = client_listbox.get(selected)
+            remove_client(nickname)
+            update_client_list()
+        else:
+            messagebox.showwarning("No selection", "Please select a client to remove.")
+
+    remove_button = tk.Button(window, text="Remove Client", command=remove_selected_client)
+    remove_button.pack(padx=20, pady=5)
+
+    update_button = tk.Button(window, text="Update Client List", command=update_client_list)
+    update_button.pack(padx=20, pady=5)
+
+    update_client_list()
+
+    window.mainloop()
+
+# Start the server and GUI
+thread = threading.Thread(target=receive)
+thread.start()
+
+server_gui()

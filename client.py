@@ -102,6 +102,8 @@ class Client:
                 if message == 'NICK':
                     print("Here 9")
                     self.sock.send(self.nickname.encode(FORMAT))
+                elif message == "You have been removed by the admin.":
+                    self.stop()  # Close the client if the admin removes it
                 else:
                     if self.gui_done:
                         print("Here 10")
